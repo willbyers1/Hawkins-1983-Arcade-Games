@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { ArrowLeft, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface PacManGameProps {
   onBack: () => void;
+  isMuted: boolean;
 }
 
 const MAP = [
@@ -30,21 +31,18 @@ const PACMAN_SPEED = 2;
 const GHOST_SPEED = 1;
 const CORNER_ASSIST = 8;
 
-export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
+export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [level, setLevel] = useState(1);
   const [gameOver, setGameOver] = useState(false);
   const [win, setWin] = useState(false);
-  
-  // Bildirim State'i
   const [showLevelUp, setShowLevelUp] = useState(false);
   
-  const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
   const keysPressed = useRef<Set<string>>(new Set());
+  
   const gameState = useRef({
     player: { x: 0, y: 0, dir: { x: 0, y: 0 }, nextDir: { x: 0, y: 0 }, angle: 0 },
     ghosts: [] as { x: number, y: number, color: string, dir: { x: number, y: number } }[],
@@ -56,17 +54,17 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
     currentLevel: 1
   });
 
+  // --- SES KURULUMU (Sadece 1 kere çalışır) ---
   useEffect(() => {
-    audioRef.current = new Audio('/starcourt.mp3'); 
+    // Müzik dosyasını yükle - GitHub repo yolunu koruyoruz
+    audioRef.current = new Audio('/Hawkins-1983-Arcade-Games/starcourt.mp3'); 
     audioRef.current.loop = true;
     audioRef.current.volume = 0.5;
 
-    const tryPlay = async () => {
-      if (audioRef.current && !isMuted && gameState.current.active) {
-        try { await audioRef.current.play(); } catch (e) { console.log(e); }
-      }
-    };
-    tryPlay();
+    // Eğer oyun açıldığında ses zaten açıksa çalmaya başla
+    if (!isMuted) {
+       audioRef.current.play().catch(e => console.log("Audio play error:", e));
+    }
 
     return () => {
       if (audioRef.current) {
@@ -74,18 +72,22 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
         audioRef.current.currentTime = 0;
       }
     };
-  }, []);
+  }, []); 
 
+  // --- SES KONTROLÜ (Reset'e sebep olmaz) ---
   useEffect(() => {
     if (!audioRef.current) return;
-    if (isMuted) audioRef.current.pause();
-    else if (gameState.current.active && !gameOver && !win) audioRef.current.play().catch(()=>{});
-  }, [isMuted, gameOver, win]);
-  
-  const toggleMute = () => setIsMuted(!isMuted);
+    
+    // Oyun bitmediyse ve ses açıksa çal
+    if (!isMuted && gameState.current.active && !gameOver && !win) {
+        audioRef.current.play().catch(()=>{});
+    } else {
+        // Sessize alındıysa veya oyun durduysa sus
+        audioRef.current.pause();
+    }
+  }, [isMuted, gameOver, win]); 
 
-  // Bu fonksiyon SADECE oyun ilk başladığında veya öldüğünde çağrılacak.
-  // Level atladığında ÇAĞRILMAYACAK.
+  // --- OYUN SIFIRLAMA MANTIĞI (Ses'ten bağımsız!) ---
   const resetLevel = useCallback(() => {
     let pStart = { x: 10, y: 10 };
     let gStarts: {x:number, y:number}[] = [];
@@ -122,11 +124,12 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
     gameState.current.currentLevel = 1;
     keysPressed.current.clear();
     
-    if(audioRef.current && !isMuted) audioRef.current.play().catch(()=>{});
-  }, [isMuted]);
+    // Buradaki "ses çal" kodunu kaldırdım çünkü yukarıdaki useEffect zaten hallediyor.
+  }, []); // BURASI ÇOK ÖNEMLİ: Dependency array boş [], yani isMuted değişince bu fonksiyon değişmez!
 
+  // Oyunu Başlat
   useEffect(() => {
-    resetLevel(); // Sadece ilk yüklemede çalışır
+    resetLevel(); 
     
     const handleKeyDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -153,7 +156,6 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
       if (!ctx) return;
 
       if (!gameState.current.active) {
-        if(audioRef.current) audioRef.current.pause();
         animationFrameId = requestAnimationFrame(gameLoop);
         return;
       }
@@ -233,17 +235,17 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
           }
       }
 
-      // YEM YEME VE LEVEL ATLAMA MANTIĞI
+      // YEM YEME
       const curCol = Math.floor(player.x / TILE_SIZE);
       const curRow = Math.floor(player.y / TILE_SIZE);
       if (curRow >= 0 && curRow < map.length && curCol >= 0 && curCol < map[0].length) {
          let scoreGain = 0;
          if (map[curRow][curCol] === 1) {
-            map[curRow][curCol] = 2; // Yendi olarak işaretle
+            map[curRow][curCol] = 2; // Yendi
             scoreGain = 10;
             gameState.current.dotsRemaining--;
          } else if (map[curRow][curCol] === 3) {
-            map[curRow][curCol] = 2; // Yendi olarak işaretle
+            map[curRow][curCol] = 2; // Yendi
             scoreGain = 50;
             gameState.current.dotsRemaining--;
          }
@@ -252,18 +254,14 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
             gameState.current.currentScore += scoreGain;
             setScore(gameState.current.currentScore);
             
-            // HER 300 PUANDA BİR LEVEL ATLA
-            // Yemleri YENİLEMEDEN, pozisyonu SIFIRLAMADAN
+            // LEVEL ATLA
             if (gameState.current.currentScore >= gameState.current.currentLevel * 300) {
-                 // Level arttır
                  gameState.current.currentLevel++;
-                 setLevel(gameState.current.currentLevel); // UI update
-                 
-                 // Bildirimi göster (1 saniye sonra kapa)
+                 setLevel(gameState.current.currentLevel); 
                  setShowLevelUp(true);
                  setTimeout(() => setShowLevelUp(false), 1000);
 
-                 // YENİ HAYALET EKLE (Oyun Durmadan)
+                 // YENİ HAYALET EKLE
                  let placed = false;
                  let attempts = 0;
                  while(!placed && attempts < 50) {
@@ -271,7 +269,6 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
                     const rc = Math.floor(Math.random() * (MAP[0].length - 2)) + 1;
                     const pCol = Math.floor(player.x / TILE_SIZE);
                     const pRow = Math.floor(player.y / TILE_SIZE);
-                    // Oyuncuya çok yakın spawn olmasın
                     const dist = Math.sqrt(Math.pow(rr - pRow, 2) + Math.pow(rc - pCol, 2));
                     
                     if (gameState.current.map[rr][rc] !== 0 && dist > 6) {
@@ -288,10 +285,6 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
             }
          }
       }
-
-      // Tüm yemler biterse oyun burada "Win" olmuyor, sonsuz devam ediyor (Kullanıcı isteği)
-      // Ancak skor kazanacak yem kalmazsa level atlayamaz.
-      // Kullanıcının "yemler yenilenmesin" isteğine sadık kalındı.
 
       // Hayaletler
       ghosts.forEach(g => {
@@ -340,7 +333,6 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
                gameState.current.active = false;
              } 
              else {
-                // Sadece ölünce reset atılıyor
                 resetLevel();
              }
              return newLives;
@@ -435,12 +427,6 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
         </button>
       </div>
 
-      <div className="absolute top-4 right-4 flex gap-4 z-10">
-        <button onClick={toggleMute} className="flex items-center gap-2 text-white hover:text-yellow-400 transition-colors p-2 bg-black/50 rounded-full">
-          {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-        </button>
-      </div>
-
       <div className="mb-4 text-center">
         <h2 className="text-yellow-400 text-2xl mb-2 animate-pulse">WAFFLE-MAN</h2>
         <div className="flex gap-8 text-white">
@@ -458,7 +444,6 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
           className="block"
         />
         
-        {/* LEVEL UP BİLDİRİMİ */}
         {showLevelUp && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
              <div className="bg-yellow-400/80 text-black font-bold text-4xl px-8 py-4 rounded animate-bounce shadow-[0_0_30px_rgba(255,255,0,0.8)]">
@@ -477,7 +462,7 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack }) => {
               onClick={handleReset}
               className="px-6 py-3 bg-red-700 hover:bg-red-600 text-white rounded flex items-center gap-2 transition"
             >
-              <RotateCcw size={16} /> Play Again
+               Play Again
             </button>
           </div>
         )}
