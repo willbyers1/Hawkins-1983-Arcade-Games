@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hawkins Arcade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Using Merriweather Black as a substitute for Benguiat, which isn't free on Google Fonts */
+      @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@900&family=Press+Start+2P&display=swap');
+      
+      body, html, #root {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #000;
+      }
+
+      /* Custom Font Classes approximating the show's title */
+      .font-stranger {
+        font-family: 'Merriweather', 'Times New Roman', serif;
+        font-weight: 900;
+        letter-spacing: -0.05em;
+      }
+      
+      .font-retro {
+        font-family: 'Press Start 2P', monospace;
+      }
+
+      /* CRT Scanline Effect */
+      .scanlines {
+        background: linear-gradient(
+          to bottom,
+          rgba(255,255,255,0),
+          rgba(255,255,255,0) 50%,
+          rgba(0,0,0,0.2) 50%,
+          rgba(0,0,0,0.2)
+        );
+        background-size: 100% 4px;
+        animation: scanline 10s linear infinite;
+        pointer-events: none;
+      }
+      
+      .crt-flicker {
+        animation: flicker 0.15s infinite;
+        pointer-events: none;
+      }
+
+      @keyframes scanline {
+        0% { background-position: 0 0; }
+        100% { background-position: 0 100%; }
+      }
+
+      @keyframes flicker {
+        0% { opacity: 0.03; }
+        5% { opacity: 0.05; }
+        10% { opacity: 0.02; }
+        15% { opacity: 0.05; }
+        20% { opacity: 0.01; }
+        50% { opacity: 0.05; }
+        80% { opacity: 0.02; }
+        100% { opacity: 0.03; }
+      }
+
+      /* Text Glow Effects */
+      .text-glow-red {
+        text-shadow: 0 0 5px #ff0000, 0 0 10px #8b0000, 0 0 15px #8b0000;
+      }
+      .text-glow-blue {
+        text-shadow: 0 0 5px #00ffff, 0 0 10px #0000ff;
+      }
+      
+      /* Custom scrollbar for dark theme */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #111;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #881111;
+        border-radius: 4px;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-black text-white overflow-hidden selection:bg-red-900 selection:text-white">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
