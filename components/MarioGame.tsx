@@ -100,7 +100,7 @@ export const MarioGame: React.FC<MarioGameProps> = ({ onBack }) => {
 
   // Müzik
   useEffect(() => {
-    audioRef.current = new Audio('/Every Breath You Take.mp3'); 
+    audioRef.current = new Audio('/breathe.mp3'); 
     audioRef.current.loop = true;
     audioRef.current.volume = 0.5;
     return () => {

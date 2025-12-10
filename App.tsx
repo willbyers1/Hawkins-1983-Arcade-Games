@@ -14,7 +14,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // Müzik dosyasını yükle
-    audioRef.current = new Audio('/Kids - Kyle Dixon.mp3');
+    audioRef.current = new Audio('/kids.mp3');
     if (audioRef.current) {
       audioRef.current.loop = true;
       audioRef.current.volume = 0.5;
