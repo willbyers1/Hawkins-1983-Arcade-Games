@@ -57,7 +57,7 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
   // --- SES KURULUMU (Sadece 1 kere çalışır) ---
   useEffect(() => {
     // Müzik dosyasını yükle - GitHub repo yolunu koruyoruz
-    audioRef.current = new Audio('/Hawkins-1983-Arcade-Games/starcourt.mp3'); 
+    audioRef.current = new Audio('/Hawkins-1983-Arcade-Games/starcourt1.mp3'); 
     audioRef.current.loop = true;
     audioRef.current.volume = 0.5;
 
