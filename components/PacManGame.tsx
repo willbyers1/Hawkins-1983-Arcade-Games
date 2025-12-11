@@ -26,6 +26,7 @@ const MAP = [
   [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 ];
+
 const TILE_SIZE = 24;
 const PACMAN_SPEED = 2;
 const GHOST_SPEED = 1;
@@ -54,14 +55,12 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
     currentLevel: 1
   });
 
-  // --- SES KURULUMU (Sadece 1 kere çalışır) ---
+  // --- SES KURULUMU ---
   useEffect(() => {
-    // Müzik dosyasını yükle - GitHub repo yolunu koruyoruz
     audioRef.current = new Audio('/Hawkins-1983-Arcade-Games/starcourt1.mp3'); 
     audioRef.current.loop = true;
     audioRef.current.volume = 0.5;
 
-    // Eğer oyun açıldığında ses zaten açıksa çalmaya başla
     if (!isMuted) {
        audioRef.current.play().catch(e => console.log("Audio play error:", e));
     }
@@ -72,22 +71,20 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
         audioRef.current.currentTime = 0;
       }
     };
-  }, []); 
+  }, []);
 
-  // --- SES KONTROLÜ (Reset'e sebep olmaz) ---
+  // --- SES KONTROLÜ ---
   useEffect(() => {
     if (!audioRef.current) return;
     
-    // Oyun bitmediyse ve ses açıksa çal
     if (!isMuted && gameState.current.active && !gameOver && !win) {
         audioRef.current.play().catch(()=>{});
     } else {
-        // Sessize alındıysa veya oyun durduysa sus
         audioRef.current.pause();
     }
-  }, [isMuted, gameOver, win]); 
+  }, [isMuted, gameOver, win]);
 
-  // --- OYUN SIFIRLAMA MANTIĞI (Ses'ten bağımsız!) ---
+  // --- LEVEL RESET ---
   const resetLevel = useCallback(() => {
     let pStart = { x: 10, y: 10 };
     let gStarts: {x:number, y:number}[] = [];
@@ -121,15 +118,13 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
     gameState.current.map = newMap;
     gameState.current.dotsRemaining = dots;
     gameState.current.active = true;
-    gameState.current.currentLevel = 1;
     keysPressed.current.clear();
-    
-    // Buradaki "ses çal" kodunu kaldırdım çünkü yukarıdaki useEffect zaten hallediyor.
-  }, []); // BURASI ÇOK ÖNEMLİ: Dependency array boş [], yani isMuted değişince bu fonksiyon değişmez!
+  }, []);
 
-  // Oyunu Başlat
+  // --- OYUN DÖNGÜSÜ ---
   useEffect(() => {
     resetLevel(); 
+    gameState.current.currentLevel = 1;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -162,6 +157,7 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
 
       gameState.current.frameCount++;
       const { player, ghosts, map } = gameState.current;
+
       const isWall = (c: number, r: number) => {
         if (r < 0 || r >= map.length || c < 0 || c >= map[0].length) return true;
         return map[r][c] === 0;
@@ -221,7 +217,7 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
       const nextX = player.x + player.dir.x * PACMAN_SPEED;
       const nextY = player.y + player.dir.y * PACMAN_SPEED;
       
-      const lookAhead = 12; 
+      const lookAhead = 12;
       const checkCol = Math.floor((nextX + player.dir.x * lookAhead) / TILE_SIZE);
       const checkRow = Math.floor((nextY + player.dir.y * lookAhead) / TILE_SIZE);
 
@@ -235,9 +231,10 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
           }
       }
 
-      // YEM YEME
+      // --- YEM YEME ---
       const curCol = Math.floor(player.x / TILE_SIZE);
       const curRow = Math.floor(player.y / TILE_SIZE);
+
       if (curRow >= 0 && curRow < map.length && curCol >= 0 && curCol < map[0].length) {
          let scoreGain = 0;
          if (map[curRow][curCol] === 1) {
@@ -254,39 +251,47 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
             gameState.current.currentScore += scoreGain;
             setScore(gameState.current.currentScore);
             
-            // LEVEL ATLA
-            if (gameState.current.currentScore >= gameState.current.currentLevel * 300) {
+            // LEVEL ATLA (Her 500 puanda bir)
+            if (gameState.current.currentScore >= gameState.current.currentLevel * 500) {
                  gameState.current.currentLevel++;
                  setLevel(gameState.current.currentLevel); 
                  setShowLevelUp(true);
                  setTimeout(() => setShowLevelUp(false), 1000);
 
-                 // YENİ HAYALET EKLE
-                 let placed = false;
-                 let attempts = 0;
-                 while(!placed && attempts < 50) {
-                    const rr = Math.floor(Math.random() * (MAP.length - 2)) + 1;
-                    const rc = Math.floor(Math.random() * (MAP[0].length - 2)) + 1;
-                    const pCol = Math.floor(player.x / TILE_SIZE);
-                    const pRow = Math.floor(player.y / TILE_SIZE);
-                    const dist = Math.sqrt(Math.pow(rr - pRow, 2) + Math.pow(rc - pCol, 2));
-                    
-                    if (gameState.current.map[rr][rc] !== 0 && dist > 6) {
-                        gameState.current.ghosts.push({
-                            x: rc * TILE_SIZE + TILE_SIZE/2,
-                            y: rr * TILE_SIZE + TILE_SIZE/2,
-                            color: '#FF8800', 
-                            dir: { x: Math.random() > 0.5 ? 1 : -1, y: 0 }
-                        });
-                        placed = true;
+                 // YENİ HAYALET EKLE (Her levelda 2 tane)
+                 for (let i = 0; i < 2; i++) {
+                     let placed = false;
+                     let attempts = 0;
+                     while(!placed && attempts < 50) {
+                        const rr = Math.floor(Math.random() * (MAP.length - 2)) + 1;
+                        const rc = Math.floor(Math.random() * (MAP[0].length - 2)) + 1;
+                        const pCol = Math.floor(player.x / TILE_SIZE);
+                        const pRow = Math.floor(player.y / TILE_SIZE);
+                        const dist = Math.sqrt(Math.pow(rr - pRow, 2) + Math.pow(rc - pCol, 2));
+
+                        if (gameState.current.map[rr][rc] !== 0 && dist > 6) {
+                            gameState.current.ghosts.push({
+                                x: rc * TILE_SIZE + TILE_SIZE/2,
+                                y: rr * TILE_SIZE + TILE_SIZE/2,
+                                color: '#FF8800', 
+                                dir: { x: Math.random() > 0.5 ? 1 : -1, y: 0 }
+                            });
+                            placed = true;
+                        }
+                        attempts++;
                     }
-                    attempts++;
                  }
+            }
+
+            // OYUNU KAZANMA KONTROLÜ (Bütün yemler bitti mi?)
+            if (gameState.current.dotsRemaining === 0) {
+                setWin(true);
+                gameState.current.active = false; // Oyunu durdur
             }
          }
       }
 
-      // Hayaletler
+      // --- HAYALETLER ---
       ghosts.forEach(g => {
         const gNextX = g.x + g.dir.x * GHOST_SPEED;
         const gNextY = g.y + g.dir.y * GHOST_SPEED;
@@ -333,14 +338,24 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
                gameState.current.active = false;
              } 
              else {
-                resetLevel();
+                // Sadece pozisyonları resetle, level ve puan kalsın
+                let pStart = { x: 10, y: 10 };
+                for(let r=0; r<MAP.length; r++) {
+                    for(let c=0; c<MAP[0].length; c++) {
+                        if(MAP[r][c] === 9) pStart = { x: c, y: r };
+                    }
+                }
+                gameState.current.player.x = pStart.x * TILE_SIZE + TILE_SIZE/2;
+                gameState.current.player.y = pStart.y * TILE_SIZE + TILE_SIZE/2;
+                gameState.current.player.dir = {x:0, y:0};
+                gameState.current.player.nextDir = {x:0, y:0};
              }
              return newLives;
            });
         }
       });
 
-      // Çizim
+      // --- ÇİZİM ---
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -376,17 +391,17 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
         ctx.fillRect(g.x - 5, g.y - 3, 3, 3);
         ctx.fillRect(g.x + 2, g.y - 3, 3, 3);
       });
+
       const isMoving = player.dir.x !== 0 || player.dir.y !== 0;
       ctx.fillStyle = '#FFFF00';
       ctx.beginPath();
       const mouth = isMoving ?
-      (Math.sin(gameState.current.frameCount * 0.2) + 1) * 0.2 * Math.PI : 0.2 * Math.PI;
+        (Math.sin(gameState.current.frameCount * 0.2) + 1) * 0.2 * Math.PI : 0.2 * Math.PI;
       let angle = 0;
       if (player.dir.x === 1) angle = 0;
       if (player.dir.x === -1) angle = Math.PI;
       if (player.dir.y === 1) angle = Math.PI/2;
       if (player.dir.y === -1) angle = -Math.PI/2;
-      
       if (!isMoving) {
         if (keysPressed.current.has('arrowright') || keysPressed.current.has('d')) angle = 0;
         else if (keysPressed.current.has('arrowleft') || keysPressed.current.has('a')) angle = Math.PI;
@@ -407,7 +422,7 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
       window.removeEventListener('keyup', handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [resetLevel]); 
+  }, [resetLevel]);
 
   const handleReset = () => {
     setScore(0);
@@ -453,16 +468,24 @@ export const PacManGame: React.FC<PacManGameProps> = ({ onBack, isMuted }) => {
         )}
 
         {(gameOver || win) && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-center z-30">
-            <h3 className={`text-4xl mb-4 ${win ? 'text-green-500' : 'text-red-600'}`}>
-              {win ? 'GAME COMPLETED!' : 'GAME OVER'}
+          <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center text-center z-30">
+            <h3 className={`text-4xl mb-4 font-bold ${win ? 'text-green-400 animate-bounce' : 'text-red-600'}`}>
+              {win ? 'CONGRATULATIONS!' : 'GAME OVER'}
             </h3>
-            <p className="text-white mb-6">Final Score: {score}</p>
+            
+            <p className="text-white mb-8 text-xl">
+               {win ? 'Tüm yemleri temizledin!' : `Final Score: ${score}`}
+            </p>
+            
             <button 
               onClick={handleReset}
-              className="px-6 py-3 bg-red-700 hover:bg-red-600 text-white rounded flex items-center gap-2 transition"
+              className={`px-8 py-3 rounded text-xl font-bold transition transform hover:scale-105 ${
+                win 
+                ? 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_15px_rgba(0,255,0,0.5)]' 
+                : 'bg-red-700 hover:bg-red-600 text-white'
+              }`}
             >
-               Play Again
+               {win ? 'TAMAM' : 'Play Again'}
             </button>
           </div>
         )}
