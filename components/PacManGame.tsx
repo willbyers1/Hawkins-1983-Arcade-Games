@@ -28,7 +28,7 @@ const MAP = [
 ];
 
 const TILE_SIZE = 24;
-const PACMAN_SPEED = 2;
+const PACMAN_SPEED = 1;
 const GHOST_SPEED = 1;
 const CORNER_ASSIST = 8;
 
